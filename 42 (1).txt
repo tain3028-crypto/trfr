@@ -202,7 +202,7 @@ local CONFIG = {
     seatRadius     = 4,
 }
 
-local POS_WAIT = Vector3.new(-12547.5361328125, 337.48046875, -7542.1806640625)
+local POS_WAIT = Vector3.new(-12625.95703125, 375.2266540527344, -7546.56689453125)
 
 local TRADE_SEATS = {
     Vector3.new(-12591.05859375, 337.6279296875, -7544.7568359375),
@@ -215,7 +215,7 @@ local RECV_SEATS = {
     Vector3.new(-12602.3125, 337.6272277832031, -7568.7568359375),
 }
 
-local delayTimes = {1, 2.5, 2, 3, 4.5, 4, 5, 6, 7, 8, 9}
+local delayTimes = {1, 2.5, 2, 3, 4.5, 4, 5, 6, 7, 8, 9, 10}
 
 -- ══════════════════════════════════════════
 --  FRUITS DATABASE (dùng chung cho cả 2 sub-script)
