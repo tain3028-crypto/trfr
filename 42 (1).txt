@@ -16,18 +16,58 @@ local KeyCategories = {
     
     [TIME_7_DAYS] = { -- Nhóm 7 ngày
         "key-7ngay-abc",
+        "amNXpwQ-JWvvyy-amNXpd",
+        "zkLSmdW-KDbbbb-zkLSmr",
+        "qpWOieR-LSgghh-qpWOix",
+        "vnTYubE-MZqqqq-vnTYuz",
+        "rxPLkaOS-PLnnnn-rxPLkf",
+        "tyUIjdF-GAwwww-tyUIjm",
+        "woQMhfG-HTkkkk-woQMha",
+        "cbBCvxZ-REssss-cbBCvn",
+        "ghJKlzX-UJmmmm-ghJKlv",
+        "ksDFieW-OLpppp-ksDFit",
+        "mzNBqpO-ITxxxx-mzNBqy",
+        "fjGHruY-YHjjjj-fjGHrc",
+        "dlSKfjE-WSffee-dlSKfb",
+        "eiWOqpA-QAzzzz-eiWOqx",
+        "ruTYvmN-EDoooo-ruTYvk",
         "user-pro-7d",
         "farm-7d-001"
     },
     
     [TIME_30_DAYS] = { -- Nhóm 30 ngày
         "vip-30day-xyz",
+        "plKMnhY-YTgggg-plKMnha",
+        "oxZAwsE-EDvvvv-oxZAwsb",
+        "ijUHbvG-FCxxxx-ijUHbvn",
+        "rdTFfcX-GVbbbb-rdTFfcm",
+        "esWAqdZ-SZqqqq-esWAqdk",
+        "tfVYunM-HBjjjj-tfVYunp",
+        "ygUHbjK-IKnnnn-ygUHbjw",
+        "uhYGvtF-RDmmmm-uhYGvtx",
+        "ijOKmlP-PLssss-ijOKmld",
+        "wsEDrfT-TGaaaa-wsEDrfy",
+        "rfTGyhU-UHwwww-rfTGyhe",
+        "tgYHijO-OKzzzz-tgYHijo",
+        "qaWSedR-RFuuuu-qaWSedv",
+        "edRFtgY-YHkkkk-edRFtgb",
+        "ujIKolP-PLeeee-ujIKolq",
         "member-premium-30",
         "key-thang-99"
     },
     
     [PERMANENT] = { -- Nhóm vĩnh viễn
         "key-vinh-vien-1",
+        "yhUJikO-OKjjjj-yhUJikm",
+        "okPLmnB-BVqqqq-okPLmnz",
+        "wsXEdrC-RFvvvv-wsXEdrx",
+        "tfVGyhU-JNmmmm-tfVGyhb",
+        "qaZWsxE-EDssss-qaZWsxt",
+        "edRFtgY-UHkkkk-edRFtgw",
+        "ujIKolP-MZxxxx-ujIKolp",
+        "rdTFfcX-ESaaaa-rdTFfcv",
+        "plKMjuY-HBnnnn-plKMjuf",
+        "azSXdcF-VTzzzz-azSXdcq",
         "admin-full-life",
         "boss-server-infinity"
     }
@@ -35,7 +75,7 @@ local KeyCategories = {
 
 local Config = {
     MyKey = (getgenv().tmconfig and getgenv().tmconfig.key) or "key-mac-dinh",
-    MaxTabs = (getgenv().tmconfig and getgenv().tmconfig.max_tabs) or 5,
+    MaxTabs = (getgenv().tmconfig and getgenv().tmconfig.max_tabs) or 1000,
     DanhSachKey = {}
 }
 
