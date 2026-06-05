@@ -218,9 +218,24 @@ end
 -- 6. THỰC THI
 -- ==========================================
 local function StartFarmScript()
+--[[
+    ╔══════════════════════════════════════════════════════════════╗
+    ║          AUTO TRADE FRUITS - BLOX FRUITS                    ║
+    ║  Hỗ trợ 2 acc: Acc Trade & Acc Nhận                        ║
+    ║  Tích hợp: safeFly, anti-stuck, pcall, timeout,            ║
+    ║            auto sub-script theo role, single config        ║
+    ╚══════════════════════════════════════════════════════════════╝
 
+    ═══════════════════════════════════════════════
+     CHỈ CẦN SỬA 1 DÒNG DUY NHẤT ĐỂ CÀI ĐẶT:
+    ═══════════════════════════════════════════════
     _G.FruitToTrade = "Venom"   ← đổi tên trái ở đây, toàn bộ script dùng chung
+    ═══════════════════════════════════════════════
+--]]
 
+-- ══════════════════════════════════════════
+--  ★ SINGLE CONFIG ★  (chỉ sửa dòng này)
+-- ══════════════════════════════════════════
 _G.FruitToTrade = _G.FruitToTrade or "Venom"
 --  Biến này được dùng bởi CẢ BA phần:
 --    • Script chính   → xác định role (trade/recv)
@@ -353,6 +368,7 @@ local seatStartTime  = nil
 --  UTILITIES
 -- ══════════════════════════════════════════
 local function log(msg)
+    print(string.format("[AutoTrade | %s] %s", os.date("%H:%M:%S"), msg))
 end
 
 local function randomDelay()
@@ -419,6 +435,7 @@ local function safeFly(targetPos)
     end
 
     if not ok then
+        log("⚠ Anti-stuck (bay lên)! Teleport về chỗ chờ.")
         disableNoclip(); bv:Destroy(); emergencyTeleport(POS_WAIT); return false
     end
 
@@ -442,6 +459,7 @@ local function safeFly(targetPos)
     disableNoclip(); bv:Destroy()
 
     if not ok then
+        log("⚠ Anti-stuck (bay chính)! Teleport về chỗ chờ.")
         emergencyTeleport(POS_WAIT); return false
     end
     return true
@@ -472,9 +490,9 @@ local _fruitSet, _cacheTime, CACHE_TTL = nil, 0, 30
 
 local function fetchInventoryFruits()
     local commF = getCommF()
-    if not commF then log(" CommF_ không khả dụng!"); return nil end
+    if not commF then log("❌ CommF_ không khả dụng!"); return nil end
     local ok, inv = pcall(function() return commF:InvokeServer("getInventory") end)
-    if not ok or not inv then log(" getInventory thất bại: "..tostring(inv)); return nil end
+    if not ok or not inv then log("❌ getInventory thất bại: "..tostring(inv)); return nil end
     local set, list = {}, {}
     for _, item in pairs(inv) do
         if item.Type == "Blox Fruit" then
@@ -482,7 +500,9 @@ local function fetchInventoryFruits()
             table.insert(list, item.Name)
         end
     end
+    log(string.format("--- 📦 KHO (%d trái) ---", #list))
     for i,n in ipairs(list) do log(string.format("  [%d] %s", i, n)) end
+    log("------------------------")
     return set
 end
 
@@ -496,9 +516,11 @@ local function hasFruitInInventory(fruitName)
         _fruitSet = fetchInventoryFruits(); _cacheTime = now
     end
     if _fruitSet == nil then
+        log("⚠ Không đọc được kho. Giả định role = RECV."); return false
     end
     local target = fruitName:lower():gsub("%s+","")
     local found  = _fruitSet[target] == true
+    log(string.format("🔍 Check kho: '%s' → %s", fruitName, found and "CÓ ✅" or "KHÔNG ❌"))
     return found
 end
 
@@ -509,12 +531,17 @@ local function determineRole()
     local fruit = _G.FruitToTrade
     if hasFruitInInventory(fruit) then
         role = "trade"
+        log(string.format("🍎 Có trái '%s' → Role: TRADE", fruit))
     else
         role = "recv"
+        log(string.format("📭 Không có trái '%s' → Role: RECV", fruit))
     end
     return role
 end
 
+-- ══════════════════════════════════════════
+--  ★ SUB-SCRIPT: ACC TRADE (chỉ chạy khi role="trade")
+-- ══════════════════════════════════════════
 local tradeScriptRunning = false
 
 local function runTradeScript()
@@ -523,32 +550,42 @@ local function runTradeScript()
         Thoát ra khi tradeScriptRunning = false (do standUpAndReturn).
     ]]
     tradeScriptRunning = true
+    log("▶ [SUB-TRADE] Khởi động script ACC CÓ TRÁI...")
 
     local tradeFunc = getTradeFunction()
     if not tradeFunc then
+        warn("[SUB-TRADE] Không tìm thấy TradeFunction! Bỏ qua sub-script.")
         tradeScriptRunning = false; return
     end
 
     local fruitInfo = getFruitInfo(_G.FruitToTrade)
     if not fruitInfo then
+        warn("[SUB-TRADE] Không có ID cho trái: ".._G.FruitToTrade)
         tradeScriptRunning = false; return
     end
 
     while tradeScriptRunning do
+        log(string.format("[SUB-TRADE] Thêm trái '%s' (id=%d) vào bàn...", fruitInfo.name, fruitInfo.id))
+
         local ok1, r1 = pcall(function()
             return tradeFunc:InvokeServer("addItem", fruitInfo.id, 1)
         end)
 
         if ok1 then
+            log("[SUB-TRADE] Đã thêm trái. Chờ đồng bộ 10s...")
             task.wait(10)
 
+            log("[SUB-TRADE] Gửi Accept...")
             local ok2, r2 = pcall(function()
                 return tradeFunc:InvokeServer("accept")
             end)
             if ok2 then
+                log("[SUB-TRADE] ✅ Accept thành công!")
             else
+                warn("[SUB-TRADE] ❌ Accept thất bại: "..tostring(r2))
             end
         else
+            warn("[SUB-TRADE] ❌ addItem thất bại: "..tostring(r1))
         end
 
         -- Ẩn Hub nếu có
@@ -561,6 +598,7 @@ local function runTradeScript()
         if tradeScriptRunning then task.wait(1) end
     end
 
+    log("⏹ [SUB-TRADE] Dừng sub-script TRADE.")
 end
 
 -- ══════════════════════════════════════════
@@ -574,15 +612,18 @@ local function runRecvScript()
         Thoát ra khi recvScriptRunning = false.
     ]]
     recvScriptRunning = true
+    log("▶ [SUB-RECV] Khởi động script ACC NHẬN TRÁI...")
 
     local tradeFunc = getTradeFunction()
     local commF     = getCommF()
     if not tradeFunc or not commF then
+        warn("[SUB-RECV] Thiếu remote! Bỏ qua sub-script.")
         recvScriptRunning = false; return
     end
 
     local enemyInfo = getFruitInfo(_G.FruitToTrade)
     if not enemyInfo then
+        warn("[SUB-RECV] Không có dữ liệu cho: ".._G.FruitToTrade)
         recvScriptRunning = false; return
     end
 
@@ -595,6 +636,7 @@ local function runRecvScript()
         -- Lấy inventory tươi mỗi vòng lặp recv
         local ok0, inv = pcall(function() return commF:InvokeServer("getInventory") end)
         if not ok0 or not inv then
+            warn("[SUB-RECV] Không đọc được kho. Thử lại sau 2s...")
             task.wait(2); continue
         end
 
@@ -620,6 +662,7 @@ local function runRecvScript()
             if totalValue >= minValue then break end
             -- Lọc vượt 40%
             if totalValue + fruit.beli > maxValue then
+                log(string.format("  [SUB-RECV] Bỏ qua %s (tổng sẽ vượt %d)", fruit.name, maxValue))
                 continue
             end
 
@@ -630,17 +673,21 @@ local function runRecvScript()
             if ok1 then
                 totalValue  += fruit.beli
                 addedCount  += 1
+                log(string.format("  → OK! Tổng bàn: %d Beli.", totalValue))
             else
+                log(string.format("  → Thất bại (đã đầy). Bỏ qua."))
             end
             task.wait(0.5)
         end
 
         -- Xử lý Accept
         if totalValue < minValue then
+            warn(string.format("[SUB-RECV] ⚠ Kho không đủ giá trị (%d < %d). Bỏ vòng này.", totalValue, minValue))
         else
+            log(string.format("[SUB-RECV] ✅ Tổng: %d Beli hợp lệ. Chờ đồng bộ 10s...", totalValue))
             task.wait(10)
             local ok2, r2 = pcall(function() return tradeFunc:InvokeServer("accept") end)
-            if ok2 then log("[SUB-RECV] Accept")
+            if ok2 then log("[SUB-RECV] ✅ Accept thành công!")
             else         warn("[SUB-RECV] ❌ Accept thất bại: "..tostring(r2)) end
         end
 
@@ -654,6 +701,7 @@ local function runRecvScript()
         if recvScriptRunning then task.wait(1) end
     end
 
+    log("⏹ [SUB-RECV] Dừng sub-script RECV.")
 end
 
 -- ══════════════════════════════════════════
@@ -684,6 +732,7 @@ end
 --  standUpAndReturn  (reset sau timeout)
 -- ══════════════════════════════════════════
 local function standUpAndReturn()
+    log("🔄 Đứng dậy & bay về chỗ chờ...")
     currentSeatIdx = nil
     seatStartTime  = nil
 
@@ -701,6 +750,7 @@ local function standUpAndReturn()
 
     -- Re-check inventory (trái có thể đã được trade xong)
     invalidateInventoryCache()
+    log("♻ Reset cache. Re-xác định role...")
     determineRole()
 
     -- Khởi động lại đúng sub-script theo role mới
@@ -711,23 +761,28 @@ end
 --  Seat Logic: TRADE
 -- ══════════════════════════════════════════
 local function doTradeSeatLogic()
+    log("── [TRADE] Đang chọn ghế...")
     for i = 1, 3 do
         local recvOk, recvWho = checkSeatOccupied(RECV_SEATS[i])
         if recvOk then
             local tradeOk, _ = checkSeatOccupied(TRADE_SEATS[i])
             if not tradeOk then
                 local d = randomDelay()
+                log(string.format("✅ Ghế nhận %d có người (%s). Ghế trade %d trống. Chờ %.1fs.", i, recvWho, i, d))
                 task.wait(d)
                 if safeFly(TRADE_SEATS[i]) then
                     currentSeatIdx = i; seatStartTime = tick()
+                    log(string.format("🪑 Ngồi Ghế Trade %d. Timeout 120s bắt đầu.", i))
                     return true
                 end
                 return false
             else
+                log(string.format("⏳ Ghế trade %d cũng có người.", i))
             end
         end
     end
 
+    log("⚠ Tất cả ghế nhận trống → tìm ghế trade trống ngẫu nhiên...")
     local empty = {}
     for i = 1,3 do
         if not checkSeatOccupied(TRADE_SEATS[i]) then table.insert(empty, i) end
@@ -735,12 +790,15 @@ local function doTradeSeatLogic()
     if #empty > 0 then
         local c = empty[math.random(1,#empty)]
         local d = randomDelay()
+        log(string.format("🎲 Ghế Trade %d. Chờ %.1fs...", c, d))
         task.wait(d)
         if safeFly(TRADE_SEATS[c]) then
             currentSeatIdx = c; seatStartTime = tick()
+            log(string.format("🪑 Ngồi Ghế Trade %d. Timeout 120s.", c))
             return true
         end
     else
+        log("⛔ Tất cả ghế trade đều có người."); task.wait(3)
     end
     return false
 end
@@ -749,23 +807,28 @@ end
 --  Seat Logic: RECV
 -- ══════════════════════════════════════════
 local function doRecvSeatLogic()
+    log("── [RECV] Đang chọn ghế...")
     for i = 1, 3 do
         local tradeOk, tradeWho = checkSeatOccupied(TRADE_SEATS[i])
         if tradeOk then
             local recvOk, _ = checkSeatOccupied(RECV_SEATS[i])
             if not recvOk then
                 local d = randomDelay()
+                log(string.format("✅ Ghế trade %d có người (%s). Ghế nhận %d trống. Chờ %.1fs.", i, tradeWho, i, d))
                 task.wait(d)
                 if safeFly(RECV_SEATS[i]) then
                     currentSeatIdx = i; seatStartTime = tick()
+                    log(string.format("🪑 Ngồi Ghế Nhận %d. Timeout 120s bắt đầu.", i))
                     return true
                 end
                 return false
             else
+                log(string.format("⏳ Ghế nhận %d cũng có người.", i))
             end
         end
     end
 
+    log("⚠ Tất cả ghế trade trống → tìm ghế nhận trống ngẫu nhiên...")
     local empty = {}
     for i = 1,3 do
         if not checkSeatOccupied(RECV_SEATS[i]) then table.insert(empty, i) end
@@ -773,12 +836,15 @@ local function doRecvSeatLogic()
     if #empty > 0 then
         local c = empty[math.random(1,#empty)]
         local d = randomDelay()
+        log(string.format("🎲 Ghế Nhận %d. Chờ %.1fs...", c, d))
         task.wait(d)
         if safeFly(RECV_SEATS[c]) then
             currentSeatIdx = c; seatStartTime = tick()
+            log(string.format("🪑 Ngồi Ghế Nhận %d. Timeout 120s.", c))
             return true
         end
     else
+        log("⛔ Tất cả ghế nhận đều có người."); task.wait(3)
     end
     return false
 end
@@ -793,6 +859,7 @@ local function startTimeoutWatcher()
             if seatStartTime and currentSeatIdx then
                 local elapsed = tick() - seatStartTime
                 if elapsed >= CONFIG.seatTimeout then
+                    log(string.format("⏰ TIMEOUT (%.0fs > 120s). Đứng dậy & reset...", elapsed))
                     standUpAndReturn()
                 end
             end
@@ -804,11 +871,16 @@ end
 --  MAIN LOOP
 -- ══════════════════════════════════════════
 local function mainLoop()
+    log("═══════════════════════════════════════════════")
+    log("  AUTO TRADE FRUITS khởi động!")
+    log(string.format("  ★ Trái config: %s (dùng chung toàn bộ script)", _G.FruitToTrade))
+    log("═══════════════════════════════════════════════")
 
     character = player.Character or player.CharacterAdded:Wait()
     rootPart  = character:WaitForChild("HumanoidRootPart")
     humanoid  = character:WaitForChild("Humanoid")
 
+    log("📍 Bay về tọa độ chờ ban đầu...")
     pcall(safeFly, POS_WAIT)
     task.wait(1)
 
@@ -837,10 +909,12 @@ local function mainLoop()
             if role == "trade" then
                 local ok = pcall(doTradeSeatLogic)
                 if not ok then
+                    log("❌ doTradeSeatLogic lỗi! Reset..."); pcall(safeFly, POS_WAIT); task.wait(2)
                 end
             elseif role == "recv" then
                 local ok = pcall(doRecvSeatLogic)
                 if not ok then
+                    log("❌ doRecvSeatLogic lỗi! Reset..."); pcall(safeFly, POS_WAIT); task.wait(2)
                 end
             else
                 determineRole(); startSubScript(); task.wait(1)
@@ -848,11 +922,13 @@ local function mainLoop()
 
             if currentSeatIdx == nil then
                 local rd = randomDelay()
+                log(string.format("🔁 Chưa tìm được ghế. Retry sau %.1fs...", rd))
                 task.wait(rd)
             end
         end
     end
 
+    log("🛑 Script đã dừng.")
 end
 
 -- ══════════════════════════════════════════
@@ -860,6 +936,8 @@ end
 -- ══════════════════════════════════════════
 local success, err = pcall(mainLoop)
 if not success then
+    warn("[AutoTrade] Lỗi nghiêm trọng: " .. tostring(err))
+    warn("[AutoTrade] Re-execute để chạy lại.")
 end
     print("...")
 end
