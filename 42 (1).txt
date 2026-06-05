@@ -1,0 +1,721 @@
+--[[
+    ╔══════════════════════════════════════════════════════════════╗
+    ║          AUTO TRADE FRUITS - BLOX FRUITS                    ║
+    ║  Hỗ trợ 2 acc: Acc Trade & Acc Nhận                        ║
+    ║  Tích hợp: safeFly, anti-stuck, pcall, timeout,            ║
+    ║            auto sub-script theo role, single config        ║
+    ╚══════════════════════════════════════════════════════════════╝
+
+    ═══════════════════════════════════════════════
+     CHỈ CẦN SỬA 1 DÒNG DUY NHẤT ĐỂ CÀI ĐẶT:
+    ═══════════════════════════════════════════════
+    _G.FruitToTrade = "Venom"   ← đổi tên trái ở đây, toàn bộ script dùng chung
+    ═══════════════════════════════════════════════
+--]]
+
+-- ══════════════════════════════════════════
+--  ★ SINGLE CONFIG ★  (chỉ sửa dòng này)
+-- ══════════════════════════════════════════
+_G.FruitToTrade = _G.FruitToTrade or "Venom"
+--  Biến này được dùng bởi CẢ BA phần:
+--    • Script chính   → xác định role (trade/recv)
+--    • Sub-script Trade  → ConfigFruit
+--    • Sub-script Recv   → EnemyFruit
+
+-- ══════════════════════════════════════════
+--  SERVICES
+-- ══════════════════════════════════════════
+local Players           = game:GetService("Players")
+local TweenService      = game:GetService("TweenService")
+local RunService        = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui           = game:GetService("CoreGui")
+
+local player    = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local rootPart  = character:WaitForChild("HumanoidRootPart")
+local humanoid  = character:WaitForChild("Humanoid")
+
+-- ══════════════════════════════════════════
+--  FLIGHT / SEAT CONFIG
+-- ══════════════════════════════════════════
+local CONFIG = {
+    speed          = 320,
+    safeHeight     = 350,
+    seatTimeout    = 120,
+    stuckCheckTime = 15,
+    stuckThreshold = 5,
+    seatRadius     = 4,
+}
+
+local POS_WAIT = Vector3.new(-12547.5361328125, 337.48046875, -7542.1806640625)
+
+local TRADE_SEATS = {
+    Vector3.new(-12591.05859375, 337.6279296875, -7544.7568359375),
+    Vector3.new(-12591.05859375, 337.6279296875, -7556.7568359375),
+    Vector3.new(-12591.05859375, 337.6279296875, -7568.7568359375),
+}
+local RECV_SEATS = {
+    Vector3.new(-12602.3125, 337.6272277832031, -7544.7568359375),
+    Vector3.new(-12602.3125, 337.6272277832031, -7556.7568359375),
+    Vector3.new(-12602.3125, 337.6272277832031, -7568.7568359375),
+}
+
+local delayTimes = {1, 2.5, 2, 3, 4.5, 4, 5, 6, 7, 8, 9}
+
+-- ══════════════════════════════════════════
+--  FRUITS DATABASE (dùng chung cho cả 2 sub-script)
+-- ══════════════════════════════════════════
+local FruitsData = {
+    {name="Kitsune",  id=221, beli=8000000}, {name="Leopard",  id=833, beli=5000000},
+    {name="Spirit",   id=181, beli=3400000}, {name="Dragon",   id=220, beli=3200000},
+    {name="Venom",    id=127, beli=3000000}, {name="Shadow",   id=163, beli=2900000},
+    {name="Dough",    id=188, beli=2800000}, {name="T-Rex",    id=204, beli=2700000},
+    {name="Mammoth",  id=191, beli=2700000}, {name="Gravity",  id=54,  beli=2500000},
+    {name="Blizzard", id=229, beli=2400000}, {name="Pain",     id=57,  beli=2300000},
+    {name="Rumble",   id=448, beli=2100000}, {name="Portal",   id=170, beli=1900000},
+    {name="Phoenix",  id=43,  beli=1800000}, {name="Sound",    id=193, beli=1700000},
+    {name="Spider",   id=48,  beli=1500000}, {name="Love",     id=86,  beli=1300000},
+    {name="Buddha",   id=14,  beli=1200000}, {name="Quake",    id=3,   beli=1000000},
+    {name="Ghost",    id=158, beli=940000},  {name="Magma",    id=8,   beli=850000},
+    {name="Control",  id=402, beli=800000},  {name="Rubber",   id=24,  beli=750000},
+    {name="Light",    id=80,  beli=650000},  {name="Diamond",  id=208, beli=600000},
+    {name="Dark",     id=20,  beli=500000},  {name="Sand",     id=53,  beli=420000},
+    {name="Ice",      id=13,  beli=350000},  {name="Falcon",   id=400, beli=300000},
+    {name="Flame",    id=18,  beli=250000},  {name="Spike",    id=26,  beli=180000},
+    {name="Spin",     id=128, beli=180000},  {name="Smoke",    id=32,  beli=100000},
+    {name="Bomb",     id=25,  beli=80000},   {name="Spring",   id=46,  beli=60000},
+    {name="Chop",     id=31,  beli=30000},   {name="Rocket",   id=4,   beli=5000},
+}
+
+-- Aliases: tên in-game khác với tên config
+local ALIASES = {
+    control  = {"creation"},
+    rumble   = {"lightning"},
+    falcon   = {"eagle"},
+    chop     = {"blade"},
+}
+
+local function getFruitInfo(serverName)
+    local lower = string.lower(serverName)
+    for _, f in ipairs(FruitsData) do
+        local fname = string.lower(f.name)
+        local checks = {fname}
+        if ALIASES[fname] then
+            for _, a in ipairs(ALIASES[fname]) do table.insert(checks, a) end
+        end
+        for _, alias in ipairs(checks) do
+            if string.find(lower, alias) then return f end
+        end
+    end
+    return nil
+end
+
+-- ══════════════════════════════════════════
+--  REMOTES (lazy-init, cache 1 lần)
+-- ══════════════════════════════════════════
+local _CommF_      = nil
+local _TradeFunc   = nil
+
+local function getCommF()
+    if _CommF_ then return _CommF_ end
+    local ok, res = pcall(function()
+        return ReplicatedStorage:WaitForChild("Remotes",10):WaitForChild("CommF_",10)
+    end)
+    if ok and res then _CommF_ = res end
+    return _CommF_
+end
+
+local function getTradeFunction()
+    if _TradeFunc then return _TradeFunc end
+    local ok, res = pcall(function()
+        return ReplicatedStorage:WaitForChild("Remotes",10):WaitForChild("TradeFunction",10)
+    end)
+    if ok and res then _TradeFunc = res end
+    return _TradeFunc
+end
+
+-- ══════════════════════════════════════════
+--  STATE
+-- ══════════════════════════════════════════
+local role           = nil
+local isRunning      = true
+local noclipConn     = nil
+local currentSeatIdx = nil
+local seatStartTime  = nil
+
+-- ══════════════════════════════════════════
+--  UTILITIES
+-- ══════════════════════════════════════════
+local function log(msg)
+    print(string.format("[AutoTrade | %s] %s", os.date("%H:%M:%S"), msg))
+end
+
+local function randomDelay()
+    return delayTimes[math.random(1, #delayTimes)]
+end
+
+local function enableNoclip()
+    if noclipConn then return end
+    noclipConn = RunService.Stepped:Connect(function()
+        if character then
+            for _, p in pairs(character:GetDescendants()) do
+                if p:IsA("BasePart") and p.CanCollide then p.CanCollide = false end
+            end
+        end
+    end)
+end
+
+local function disableNoclip()
+    if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
+    if character then
+        for _, p in pairs(character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = true end
+        end
+    end
+end
+
+local function emergencyTeleport(pos)
+    pcall(function() rootPart.CFrame = CFrame.new(pos) end)
+end
+
+-- ══════════════════════════════════════════
+--  safeFly  (anti-stuck tích hợp)
+-- ══════════════════════════════════════════
+local function safeFly(targetPos)
+    character = player.Character or player.CharacterAdded:Wait()
+    rootPart  = character:WaitForChild("HumanoidRootPart")
+    enableNoclip()
+
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bv.Velocity = Vector3.new(0,0,0)
+    bv.Parent   = rootPart
+
+    local ok = true
+
+    -- Pha 1: Bay lên nếu thấp
+    if rootPart.Position.Y < 50 then
+        local ascend   = Vector3.new(rootPart.Position.X, CONFIG.safeHeight, rootPart.Position.Z)
+        local tweenUp  = TweenService:Create(rootPart,
+            TweenInfo.new((rootPart.Position - ascend).Magnitude / CONFIG.speed, Enum.EasingStyle.Linear),
+            {CFrame = CFrame.new(ascend)})
+
+        local prev, timer = rootPart.Position, 0
+        local conn = RunService.Heartbeat:Connect(function(dt)
+            timer += dt
+            if timer >= CONFIG.stuckCheckTime then
+                if (rootPart.Position - prev).Magnitude < CONFIG.stuckThreshold then
+                    ok = false; tweenUp:Cancel()
+                end
+                timer = 0; prev = rootPart.Position
+            end
+        end)
+        tweenUp:Play(); tweenUp.Completed:Wait(); conn:Disconnect()
+    end
+
+    if not ok then
+        log("⚠ Anti-stuck (bay lên)! Teleport về chỗ chờ.")
+        disableNoclip(); bv:Destroy(); emergencyTeleport(POS_WAIT); return false
+    end
+
+    -- Pha 2: Bay đến đích
+    local tweenMain = TweenService:Create(rootPart,
+        TweenInfo.new((rootPart.Position - targetPos).Magnitude / CONFIG.speed, Enum.EasingStyle.Linear),
+        {CFrame = CFrame.new(targetPos)})
+
+    local prev, timer = rootPart.Position, 0
+    local conn = RunService.Heartbeat:Connect(function(dt)
+        timer += dt
+        if timer >= CONFIG.stuckCheckTime then
+            if (rootPart.Position - prev).Magnitude < CONFIG.stuckThreshold then
+                ok = false; tweenMain:Cancel()
+            end
+            timer = 0; prev = rootPart.Position
+        end
+    end)
+    tweenMain:Play(); tweenMain.Completed:Wait(); conn:Disconnect()
+
+    disableNoclip(); bv:Destroy()
+
+    if not ok then
+        log("⚠ Anti-stuck (bay chính)! Teleport về chỗ chờ.")
+        emergencyTeleport(POS_WAIT); return false
+    end
+    return true
+end
+
+-- ══════════════════════════════════════════
+--  checkSeatOccupied
+-- ══════════════════════════════════════════
+local function checkSeatOccupied(pos)
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            if (p.Character.HumanoidRootPart.Position - pos).Magnitude < CONFIG.seatRadius then
+                return true, p.Name
+            end
+        end
+    end
+    return false, nil
+end
+
+-- ══════════════════════════════════════════
+--  INVENTORY CHECK qua CommF_
+-- ══════════════════════════════════════════
+local function normalizeFruitName(raw)
+    return (raw:match("^(.-)%-") or raw):lower():gsub("%s+","")
+end
+
+local _fruitSet, _cacheTime, CACHE_TTL = nil, 0, 30
+
+local function fetchInventoryFruits()
+    local commF = getCommF()
+    if not commF then log("❌ CommF_ không khả dụng!"); return nil end
+    local ok, inv = pcall(function() return commF:InvokeServer("getInventory") end)
+    if not ok or not inv then log("❌ getInventory thất bại: "..tostring(inv)); return nil end
+    local set, list = {}, {}
+    for _, item in pairs(inv) do
+        if item.Type == "Blox Fruit" then
+            set[normalizeFruitName(item.Name)] = true
+            table.insert(list, item.Name)
+        end
+    end
+    log(string.format("--- 📦 KHO (%d trái) ---", #list))
+    for i,n in ipairs(list) do log(string.format("  [%d] %s", i, n)) end
+    log("------------------------")
+    return set
+end
+
+local function invalidateInventoryCache()
+    _fruitSet = nil; _cacheTime = 0
+end
+
+local function hasFruitInInventory(fruitName)
+    local now = tick()
+    if _fruitSet == nil or (now - _cacheTime) > CACHE_TTL then
+        _fruitSet = fetchInventoryFruits(); _cacheTime = now
+    end
+    if _fruitSet == nil then
+        log("⚠ Không đọc được kho. Giả định role = RECV."); return false
+    end
+    local target = fruitName:lower():gsub("%s+","")
+    local found  = _fruitSet[target] == true
+    log(string.format("🔍 Check kho: '%s' → %s", fruitName, found and "CÓ ✅" or "KHÔNG ❌"))
+    return found
+end
+
+-- ══════════════════════════════════════════
+--  determineRole
+-- ══════════════════════════════════════════
+local function determineRole()
+    local fruit = _G.FruitToTrade
+    if hasFruitInInventory(fruit) then
+        role = "trade"
+        log(string.format("🍎 Có trái '%s' → Role: TRADE", fruit))
+    else
+        role = "recv"
+        log(string.format("📭 Không có trái '%s' → Role: RECV", fruit))
+    end
+    return role
+end
+
+-- ══════════════════════════════════════════
+--  ★ SUB-SCRIPT: ACC TRADE (chỉ chạy khi role="trade")
+-- ══════════════════════════════════════════
+local tradeScriptRunning = false
+
+local function runTradeScript()
+    --[[
+        Vòng lặp nội bộ: thêm trái vào bàn trade rồi Accept.
+        Thoát ra khi tradeScriptRunning = false (do standUpAndReturn).
+    ]]
+    tradeScriptRunning = true
+    log("▶ [SUB-TRADE] Khởi động script ACC CÓ TRÁI...")
+
+    local tradeFunc = getTradeFunction()
+    if not tradeFunc then
+        warn("[SUB-TRADE] Không tìm thấy TradeFunction! Bỏ qua sub-script.")
+        tradeScriptRunning = false; return
+    end
+
+    local fruitInfo = getFruitInfo(_G.FruitToTrade)
+    if not fruitInfo then
+        warn("[SUB-TRADE] Không có ID cho trái: ".._G.FruitToTrade)
+        tradeScriptRunning = false; return
+    end
+
+    while tradeScriptRunning do
+        log(string.format("[SUB-TRADE] Thêm trái '%s' (id=%d) vào bàn...", fruitInfo.name, fruitInfo.id))
+
+        local ok1, r1 = pcall(function()
+            return tradeFunc:InvokeServer("addItem", fruitInfo.id, 1)
+        end)
+
+        if ok1 then
+            log("[SUB-TRADE] Đã thêm trái. Chờ đồng bộ 10s...")
+            task.wait(10)
+
+            log("[SUB-TRADE] Gửi Accept...")
+            local ok2, r2 = pcall(function()
+                return tradeFunc:InvokeServer("accept")
+            end)
+            if ok2 then
+                log("[SUB-TRADE] ✅ Accept thành công!")
+            else
+                warn("[SUB-TRADE] ❌ Accept thất bại: "..tostring(r2))
+            end
+        else
+            warn("[SUB-TRADE] ❌ addItem thất bại: "..tostring(r1))
+        end
+
+        -- Ẩn Hub nếu có
+        pcall(function()
+            if CoreGui:FindFirstChild("Banana Hub") then
+                CoreGui["Banana Hub"].Enabled = false
+            end
+        end)
+
+        if tradeScriptRunning then task.wait(1) end
+    end
+
+    log("⏹ [SUB-TRADE] Dừng sub-script TRADE.")
+end
+
+-- ══════════════════════════════════════════
+--  ★ SUB-SCRIPT: ACC RECV (chỉ chạy khi role="recv")
+-- ══════════════════════════════════════════
+local recvScriptRunning = false
+
+local function runRecvScript()
+    --[[
+        Vòng lặp nội bộ: đọc inventory, tìm combo trái hợp lệ, thêm vào bàn, Accept.
+        Thoát ra khi recvScriptRunning = false.
+    ]]
+    recvScriptRunning = true
+    log("▶ [SUB-RECV] Khởi động script ACC NHẬN TRÁI...")
+
+    local tradeFunc = getTradeFunction()
+    local commF     = getCommF()
+    if not tradeFunc or not commF then
+        warn("[SUB-RECV] Thiếu remote! Bỏ qua sub-script.")
+        recvScriptRunning = false; return
+    end
+
+    local enemyInfo = getFruitInfo(_G.FruitToTrade)
+    if not enemyInfo then
+        warn("[SUB-RECV] Không có dữ liệu cho: ".._G.FruitToTrade)
+        recvScriptRunning = false; return
+    end
+
+    local minValue = enemyInfo.beli * 0.6
+    local maxValue = math.floor(enemyInfo.beli / 0.6)
+    log(string.format("[SUB-RECV] Đối phương ném: %s (%d Beli) | Vùng hợp lệ: %d – %d",
+        enemyInfo.name, enemyInfo.beli, minValue, maxValue))
+
+    while recvScriptRunning do
+        -- Lấy inventory tươi mỗi vòng lặp recv
+        local ok0, inv = pcall(function() return commF:InvokeServer("getInventory") end)
+        if not ok0 or not inv then
+            warn("[SUB-RECV] Không đọc được kho. Thử lại sau 2s...")
+            task.wait(2); continue
+        end
+
+        -- Build danh sách trái của mình (có thể nhiều trái cùng loại)
+        local myFruits = {}
+        for _, item in pairs(inv) do
+            if item.Type == "Blox Fruit" then
+                local info = getFruitInfo(item.Name)
+                if info then
+                    local count = item.Count or 1
+                    for _ = 1, count do table.insert(myFruits, info) end
+                end
+            end
+        end
+        -- Sắp xếp đắt → rẻ
+        table.sort(myFruits, function(a, b) return a.beli > b.beli end)
+
+        local totalValue, addedCount = 0, 0
+
+        for _, fruit in ipairs(myFruits) do
+            if not recvScriptRunning then break end
+            if addedCount >= 4 then break end
+            if totalValue >= minValue then break end
+            -- Lọc vượt 40%
+            if totalValue + fruit.beli > maxValue then
+                log(string.format("  [SUB-RECV] Bỏ qua %s (tổng sẽ vượt %d)", fruit.name, maxValue))
+                continue
+            end
+
+            log(string.format("  [SUB-RECV] Thêm: %s (%d Beli)...", fruit.name, fruit.beli))
+            local ok1, _ = pcall(function()
+                return tradeFunc:InvokeServer("addItem", fruit.id, 1)
+            end)
+            if ok1 then
+                totalValue  += fruit.beli
+                addedCount  += 1
+                log(string.format("  → OK! Tổng bàn: %d Beli.", totalValue))
+            else
+                log(string.format("  → Thất bại (đã đầy). Bỏ qua."))
+            end
+            task.wait(0.5)
+        end
+
+        -- Xử lý Accept
+        if totalValue < minValue then
+            warn(string.format("[SUB-RECV] ⚠ Kho không đủ giá trị (%d < %d). Bỏ vòng này.", totalValue, minValue))
+        else
+            log(string.format("[SUB-RECV] ✅ Tổng: %d Beli hợp lệ. Chờ đồng bộ 10s...", totalValue))
+            task.wait(10)
+            local ok2, r2 = pcall(function() return tradeFunc:InvokeServer("accept") end)
+            if ok2 then log("[SUB-RECV] ✅ Accept thành công!")
+            else         warn("[SUB-RECV] ❌ Accept thất bại: "..tostring(r2)) end
+        end
+
+        -- Ẩn Hub
+        pcall(function()
+            if CoreGui:FindFirstChild("Banana Hub") then
+                CoreGui["Banana Hub"].Enabled = false
+            end
+        end)
+
+        if recvScriptRunning then task.wait(1) end
+    end
+
+    log("⏹ [SUB-RECV] Dừng sub-script RECV.")
+end
+
+-- ══════════════════════════════════════════
+--  Spawn đúng sub-script theo role
+-- ══════════════════════════════════════════
+local function startSubScript()
+    if role == "trade" then
+        --  Acc có trái → chạy Trade, dừng Recv nếu đang chạy
+        recvScriptRunning = false
+        if not tradeScriptRunning then
+            task.spawn(runTradeScript)
+        end
+    elseif role == "recv" then
+        --  Acc không có trái → chạy Recv, dừng Trade nếu đang chạy
+        tradeScriptRunning = false
+        if not recvScriptRunning then
+            task.spawn(runRecvScript)
+        end
+    end
+end
+
+local function stopSubScripts()
+    tradeScriptRunning = false
+    recvScriptRunning  = false
+end
+
+-- ══════════════════════════════════════════
+--  standUpAndReturn  (reset sau timeout)
+-- ══════════════════════════════════════════
+local function standUpAndReturn()
+    log("🔄 Đứng dậy & bay về chỗ chờ...")
+    currentSeatIdx = nil
+    seatStartTime  = nil
+
+    -- Dừng cả 2 sub-script trong lúc về chỗ chờ
+    stopSubScripts()
+
+    pcall(function()
+        humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then humanoid.Jump = true end
+    end)
+
+    task.wait(0.5)
+    safeFly(POS_WAIT)
+    task.wait(1)
+
+    -- Re-check inventory (trái có thể đã được trade xong)
+    invalidateInventoryCache()
+    log("♻ Reset cache. Re-xác định role...")
+    determineRole()
+
+    -- Khởi động lại đúng sub-script theo role mới
+    startSubScript()
+end
+
+-- ══════════════════════════════════════════
+--  Seat Logic: TRADE
+-- ══════════════════════════════════════════
+local function doTradeSeatLogic()
+    log("── [TRADE] Đang chọn ghế...")
+    for i = 1, 3 do
+        local recvOk, recvWho = checkSeatOccupied(RECV_SEATS[i])
+        if recvOk then
+            local tradeOk, _ = checkSeatOccupied(TRADE_SEATS[i])
+            if not tradeOk then
+                local d = randomDelay()
+                log(string.format("✅ Ghế nhận %d có người (%s). Ghế trade %d trống. Chờ %.1fs.", i, recvWho, i, d))
+                task.wait(d)
+                if safeFly(TRADE_SEATS[i]) then
+                    currentSeatIdx = i; seatStartTime = tick()
+                    log(string.format("🪑 Ngồi Ghế Trade %d. Timeout 120s bắt đầu.", i))
+                    return true
+                end
+                return false
+            else
+                log(string.format("⏳ Ghế trade %d cũng có người.", i))
+            end
+        end
+    end
+
+    log("⚠ Tất cả ghế nhận trống → tìm ghế trade trống ngẫu nhiên...")
+    local empty = {}
+    for i = 1,3 do
+        if not checkSeatOccupied(TRADE_SEATS[i]) then table.insert(empty, i) end
+    end
+    if #empty > 0 then
+        local c = empty[math.random(1,#empty)]
+        local d = randomDelay()
+        log(string.format("🎲 Ghế Trade %d. Chờ %.1fs...", c, d))
+        task.wait(d)
+        if safeFly(TRADE_SEATS[c]) then
+            currentSeatIdx = c; seatStartTime = tick()
+            log(string.format("🪑 Ngồi Ghế Trade %d. Timeout 120s.", c))
+            return true
+        end
+    else
+        log("⛔ Tất cả ghế trade đều có người."); task.wait(3)
+    end
+    return false
+end
+
+-- ══════════════════════════════════════════
+--  Seat Logic: RECV
+-- ══════════════════════════════════════════
+local function doRecvSeatLogic()
+    log("── [RECV] Đang chọn ghế...")
+    for i = 1, 3 do
+        local tradeOk, tradeWho = checkSeatOccupied(TRADE_SEATS[i])
+        if tradeOk then
+            local recvOk, _ = checkSeatOccupied(RECV_SEATS[i])
+            if not recvOk then
+                local d = randomDelay()
+                log(string.format("✅ Ghế trade %d có người (%s). Ghế nhận %d trống. Chờ %.1fs.", i, tradeWho, i, d))
+                task.wait(d)
+                if safeFly(RECV_SEATS[i]) then
+                    currentSeatIdx = i; seatStartTime = tick()
+                    log(string.format("🪑 Ngồi Ghế Nhận %d. Timeout 120s bắt đầu.", i))
+                    return true
+                end
+                return false
+            else
+                log(string.format("⏳ Ghế nhận %d cũng có người.", i))
+            end
+        end
+    end
+
+    log("⚠ Tất cả ghế trade trống → tìm ghế nhận trống ngẫu nhiên...")
+    local empty = {}
+    for i = 1,3 do
+        if not checkSeatOccupied(RECV_SEATS[i]) then table.insert(empty, i) end
+    end
+    if #empty > 0 then
+        local c = empty[math.random(1,#empty)]
+        local d = randomDelay()
+        log(string.format("🎲 Ghế Nhận %d. Chờ %.1fs...", c, d))
+        task.wait(d)
+        if safeFly(RECV_SEATS[c]) then
+            currentSeatIdx = c; seatStartTime = tick()
+            log(string.format("🪑 Ngồi Ghế Nhận %d. Timeout 120s.", c))
+            return true
+        end
+    else
+        log("⛔ Tất cả ghế nhận đều có người."); task.wait(3)
+    end
+    return false
+end
+
+-- ══════════════════════════════════════════
+--  Timeout Watcher
+-- ══════════════════════════════════════════
+local function startTimeoutWatcher()
+    task.spawn(function()
+        while isRunning do
+            task.wait(1)
+            if seatStartTime and currentSeatIdx then
+                local elapsed = tick() - seatStartTime
+                if elapsed >= CONFIG.seatTimeout then
+                    log(string.format("⏰ TIMEOUT (%.0fs > 120s). Đứng dậy & reset...", elapsed))
+                    standUpAndReturn()
+                end
+            end
+        end
+    end)
+end
+
+-- ══════════════════════════════════════════
+--  MAIN LOOP
+-- ══════════════════════════════════════════
+local function mainLoop()
+    log("═══════════════════════════════════════════════")
+    log("  AUTO TRADE FRUITS khởi động!")
+    log(string.format("  ★ Trái config: %s (dùng chung toàn bộ script)", _G.FruitToTrade))
+    log("═══════════════════════════════════════════════")
+
+    character = player.Character or player.CharacterAdded:Wait()
+    rootPart  = character:WaitForChild("HumanoidRootPart")
+    humanoid  = character:WaitForChild("Humanoid")
+
+    log("📍 Bay về tọa độ chờ ban đầu...")
+    pcall(safeFly, POS_WAIT)
+    task.wait(1)
+
+    -- Xác định role lần đầu
+    determineRole()
+
+    -- Spawn đúng sub-script theo role ngay khi khởi động
+    startSubScript()
+
+    -- Khởi động timeout watcher
+    startTimeoutWatcher()
+
+    -- ── Main loop ──
+    while isRunning do
+        pcall(function()
+            character = player.Character or player.CharacterAdded:Wait()
+            rootPart  = character:WaitForChild("HumanoidRootPart")
+            humanoid  = character:WaitForChild("Humanoid")
+        end)
+
+        if currentSeatIdx ~= nil then
+            -- Đang ngồi ghế → chờ (sub-script đang xử lý trade)
+            task.wait(1)
+        else
+            -- Chưa ngồi ghế → tìm ghế
+            if role == "trade" then
+                local ok = pcall(doTradeSeatLogic)
+                if not ok then
+                    log("❌ doTradeSeatLogic lỗi! Reset..."); pcall(safeFly, POS_WAIT); task.wait(2)
+                end
+            elseif role == "recv" then
+                local ok = pcall(doRecvSeatLogic)
+                if not ok then
+                    log("❌ doRecvSeatLogic lỗi! Reset..."); pcall(safeFly, POS_WAIT); task.wait(2)
+                end
+            else
+                determineRole(); startSubScript(); task.wait(1)
+            end
+
+            if currentSeatIdx == nil then
+                local rd = randomDelay()
+                log(string.format("🔁 Chưa tìm được ghế. Retry sau %.1fs...", rd))
+                task.wait(rd)
+            end
+        end
+    end
+
+    log("🛑 Script đã dừng.")
+end
+
+-- ══════════════════════════════════════════
+--  ENTRY POINT
+-- ══════════════════════════════════════════
+local success, err = pcall(mainLoop)
+if not success then
+    warn("[AutoTrade] Lỗi nghiêm trọng: " .. tostring(err))
+    warn("[AutoTrade] Re-execute để chạy lại.")
+end
