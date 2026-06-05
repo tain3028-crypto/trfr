@@ -353,7 +353,6 @@ local seatStartTime  = nil
 --  UTILITIES
 -- ══════════════════════════════════════════
 local function log(msg)
-    print(string.format("[AutoTrade | %s] %s", os.date("%H:%M:%S"), msg))
 end
 
 local function randomDelay()
@@ -484,7 +483,6 @@ local function fetchInventoryFruits()
         end
     end
     for i,n in ipairs(list) do log(string.format("  [%d] %s", i, n)) end
-    log("------------------------")
     return set
 end
 
@@ -549,7 +547,6 @@ local function runTradeScript()
         if ok1 then
             task.wait(10)
 
-            log("[SUB-TRADE] Gửi Accept...")
             local ok2, r2 = pcall(function()
                 return tradeFunc:InvokeServer("accept")
             end)
