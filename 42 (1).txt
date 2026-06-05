@@ -1,3 +1,29 @@
+repeat task.wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+while not LocalPlayer do
+    LocalPlayer = Players.LocalPlayer
+    task.wait(0.5)
+end
+
+local targetTeam = "Marines"
+local remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+-- Vòng lặp thử lại cho đến khi đổi phe thành công
+while true do
+    if LocalPlayer.Team == nil or LocalPlayer.Team.Name ~= targetTeam then
+        pcall(function()
+            remote:InvokeServer("SetTeam", targetTeam)
+        end)
+    else
+        break 
+    end
+    task.wait(1) 
+end
+task.wait(4)
 local HttpService = game:GetService("HttpService")
 
 local DatabaseURL = "https://phuoc-245b8-default-rtdb.asia-southeast1.firebasedatabase.app/KeySystem.json"
