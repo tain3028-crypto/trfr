@@ -218,8 +218,24 @@ end
 -- 6. THỰC THI
 -- ==========================================
 local function StartFarmScript()
-   _G.FruitToTrade = ""  
+--[[
+    ╔══════════════════════════════════════════════════════════════╗
+    ║          AUTO TRADE FRUITS - BLOX FRUITS                    ║
+    ║  Hỗ trợ 2 acc: Acc Trade & Acc Nhận                        ║
+    ║  Tích hợp: safeFly, anti-stuck, pcall, timeout,            ║
+    ║            auto sub-script theo role, single config        ║
+    ╚══════════════════════════════════════════════════════════════╝
 
+    ═══════════════════════════════════════════════
+     CHỈ CẦN SỬA 1 DÒNG DUY NHẤT ĐỂ CÀI ĐẶT:
+    ═══════════════════════════════════════════════
+    _G.FruitToTrade = "Venom"   ← đổi tên trái ở đây, toàn bộ script dùng chung
+    ═══════════════════════════════════════════════
+--]]
+
+-- ══════════════════════════════════════════
+--  ★ SINGLE CONFIG ★  (chỉ sửa dòng này)
+-- ══════════════════════════════════════════
 _G.FruitToTrade = _G.FruitToTrade or "Điền config"
 
 -- ══════════════════════════════════════════
