@@ -236,7 +236,7 @@ local function StartFarmScript()
 -- ══════════════════════════════════════════
 --  ★ SINGLE CONFIG ★  (chỉ sửa dòng này)
 -- ══════════════════════════════════════════
-_G.FruitToTrade = _G.FruitToTrade or "Điền config"
+_G.FruitToTrade = _G.FruitToTrade or "Kitsune"
 
 -- ══════════════════════════════════════════
 --  SERVICES
