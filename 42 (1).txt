@@ -283,18 +283,20 @@ local delayTimes = {2, 4, 6, 8, 9, 10, 12, 14}
 --  FRUITS DATABASE
 -- ══════════════════════════════════════════
 local FruitsData = {
-    {name="Kitsune",  id=221, beli=8000000}, {name="Leopard",  id=833, beli=5000000},
-    {name="Spirit",   id=181, beli=3400000}, {name="Dragon",   id=220, beli=3200000},
+    {name="Kitsune",  id=221, beli=8000000}, {name="Tger",  id=833, beli=5000000},
+    {name="Creation",  id=402, beli=1400000},  {name="Blizzard",  id=3, beli=2400000},
+    {name="Gas",  id=220, beli=3200000},
+    {name="Spirit",   id=181, beli=3400000}, {name="Dragon",   id=700, beli=8000000},
     {name="Venom",    id=127, beli=3000000}, {name="Shadow",   id=163, beli=2900000},
     {name="Dough",    id=188, beli=2800000}, {name="T-Rex",    id=204, beli=2700000},
     {name="Mammoth",  id=191, beli=2700000}, {name="Gravity",  id=54,  beli=2500000},
-    {name="Blizzard", id=229, beli=2400000}, {name="Pain",     id=57,  beli=2300000},
-    {name="Rumble",   id=448, beli=2100000}, {name="Portal",   id=170, beli=1900000},
+    {name="Yeti", id=229, beli=5000000}, {name="Pain",     id=57,  beli=2300000},
+    {name="Lightning",   id=448, beli=2100000}, {name="Portal",   id=170, beli=1900000},
     {name="Phoenix",  id=43,  beli=1800000}, {name="Sound",    id=193, beli=1700000},
     {name="Spider",   id=48,  beli=1500000}, {name="Love",     id=86,  beli=1300000},
     {name="Buddha",   id=14,  beli=1200000}, {name="Quake",    id=3,   beli=1000000},
     {name="Ghost",    id=158, beli=940000},  {name="Magma",    id=8,   beli=850000},
-    {name="Control",  id=402, beli=800000},  {name="Rubber",   id=24,  beli=750000},
+    {name="Control",  id=499, beli=000},  {name="Rubber",   id=24,  beli=750000},
     {name="Light",    id=80,  beli=650000},  {name="Diamond",  id=208, beli=600000},
     {name="Dark",     id=20,  beli=500000},  {name="Sand",     id=53,  beli=420000},
     {name="Ice",      id=13,  beli=350000},  {name="Falcon",   id=400, beli=300000},
@@ -305,7 +307,6 @@ local FruitsData = {
 }
 
 local ALIASES = {
-    control  = {"creation"},
     rumble   = {"lightning"},
     falcon   = {"eagle"},
     chop     = {"blade"},
