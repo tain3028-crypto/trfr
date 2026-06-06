@@ -284,7 +284,7 @@ local delayTimes = {2, 4, 6, 8, 9, 10, 12, 14}
 -- ══════════════════════════════════════════
 local FruitsData = {
     {name="Kitsune",  id=221, beli=8000000}, {name="Tger",  id=833, beli=5000000},
-    {name="Creation",  id=402, beli=1400000},  {name="Blizzard",  id=3, beli=2400000},
+    {name="Creation",  id=402, beli=1400000},  {name="Blizzard",  id=184, beli=2400000},
     {name="Gas",  id=220, beli=3200000},
     {name="Spirit",   id=181, beli=3400000}, {name="Dragon",   id=700, beli=8000000},
     {name="Venom",    id=127, beli=3000000}, {name="Shadow",   id=163, beli=2900000},
