@@ -218,25 +218,9 @@ end
 -- 6. THỰC THI
 -- ==========================================
 local function StartFarmScript()
---[[
-    ╔══════════════════════════════════════════════════════════════╗
-    ║          AUTO TRADE FRUITS - BLOX FRUITS                    ║
-    ║  Hỗ trợ 2 acc: Acc Trade & Acc Nhận                        ║
-    ║  Tích hợp: safeFly, anti-stuck, pcall, timeout,            ║
-    ║            auto sub-script theo role, single config        ║
-    ╚══════════════════════════════════════════════════════════════╝
+_G.FruitToTrade = "Shadow"  
 
-    ═══════════════════════════════════════════════
-     CHỈ CẦN SỬA 1 DÒNG DUY NHẤT ĐỂ CÀI ĐẶT:
-    ═══════════════════════════════════════════════
-    _G.FruitToTrade = "Venom"   ← đổi tên trái ở đây, toàn bộ script dùng chung
-    ═══════════════════════════════════════════════
---]]
-
--- ══════════════════════════════════════════
---  ★ SINGLE CONFIG ★  (chỉ sửa dòng này)
--- ══════════════════════════════════════════
-_G.FruitToTrade = _G.FruitToTrade or "Kitsune"
+_G.FruitToTrade = _G.FruitToTrade or "Điền config"
 
 -- ══════════════════════════════════════════
 --  SERVICES
@@ -363,7 +347,6 @@ local seatStartTime  = nil
 --  UI (minimal, top-center)
 -- ══════════════════════════════════════════
 do
-    -- Xoá UI cũ nếu có
     if CoreGui:FindFirstChild("AutoTradeUI") then
         CoreGui:FindFirstChild("AutoTradeUI"):Destroy()
     end
@@ -374,7 +357,6 @@ do
     screenGui.DisplayOrder = 999
     screenGui.Parent = CoreGui
 
-    -- Frame nền
     local frame = Instance.new("Frame")
     frame.Name = "MainFrame"
     frame.Size = UDim2.new(0, 260, 0, 62)
@@ -384,19 +366,16 @@ do
     frame.BorderSizePixel = 0
     frame.Parent = screenGui
 
-    -- Bo góc
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 10)
     corner.Parent = frame
 
-    -- Viền accent
     local stroke = Instance.new("UIStroke")
     stroke.Color = Color3.fromRGB(255, 180, 40)
     stroke.Thickness = 1.5
     stroke.Transparency = 0.3
     stroke.Parent = frame
 
-    -- Tiêu đề bảng
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Name = "Title"
     titleLabel.Size = UDim2.new(1, 0, 0, 26)
@@ -409,7 +388,6 @@ do
     titleLabel.Font = Enum.Font.GothamBold
     titleLabel.Parent = frame
 
-    -- Config trái
     local fruitLabel = Instance.new("TextLabel")
     fruitLabel.Name = "FruitLabel"
     fruitLabel.Size = UDim2.new(1, 0, 0, 22)
@@ -422,14 +400,13 @@ do
     fruitLabel.Font = Enum.Font.Gotham
     fruitLabel.Parent = frame
 
-    -- Cập nhật live nếu _G.FruitToTrade thay đổi
     task.spawn(function()
         local last = _G.FruitToTrade
         while true do
             task.wait(1)
             if _G.FruitToTrade ~= last then
                 last = _G.FruitToTrade
-                fruitLabel.Text = "🍎 Trái: " .. tostring(_G.FruitToTrade)
+                fruitLabel.Text = "fruits : " .. tostring(_G.FruitToTrade)
             end
         end
     end)
@@ -740,7 +717,7 @@ local function standUpAndReturn()
 
     local player = game.Players.LocalPlayer
     local character = player.Character
-    if character then 
+    if character then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if humanoid then
             humanoid.Jump = true
@@ -759,15 +736,24 @@ end
 
 -- ══════════════════════════════════════════
 --  Seat Logic: TRADE
+--  Ngồi theo thứ tự 1→2→3:
+--    Ưu tiên ghế có người recv đối diện (cùng index).
+--    Nếu không có cặp nào → lấy ghế trade trống đầu tiên theo thứ tự.
+--    Recheck sau delay trước khi bay.
 -- ══════════════════════════════════════════
 local function doTradeSeatLogic()
+    -- Bước 1: tìm ghế có người recv đối diện (index nhỏ nhất trước)
     for i = 1, 3 do
-        local recvOk, recvWho = checkSeatOccupied(RECV_SEATS[i])
+        local recvOk, _ = checkSeatOccupied(RECV_SEATS[i])
         if recvOk then
             local tradeOk, _ = checkSeatOccupied(TRADE_SEATS[i])
             if not tradeOk then
                 local d = randomDelay()
                 task.wait(d)
+                -- Recheck sau delay
+                local recvStill, _ = checkSeatOccupied(RECV_SEATS[i])
+                local tradeStill, _ = checkSeatOccupied(TRADE_SEATS[i])
+                if not recvStill or tradeStill then return false end
                 if safeFly(TRADE_SEATS[i]) then
                     currentSeatIdx = i; seatStartTime = tick()
                     return true
@@ -777,35 +763,48 @@ local function doTradeSeatLogic()
         end
     end
 
-    local empty = {}
-    for i = 1,3 do
-        if not checkSeatOccupied(TRADE_SEATS[i]) then table.insert(empty, i) end
-    end
-    if #empty > 0 then
-        local c = empty[math.random(1,#empty)]
-        local d = randomDelay()
-        task.wait(d)
-        if safeFly(TRADE_SEATS[c]) then
-            currentSeatIdx = c; seatStartTime = tick()
-            return true
+    -- Bước 2: không có cặp nào → ngồi ghế trade trống đầu tiên theo thứ tự 1→2→3
+    for i = 1, 3 do
+        local tradeOk, _ = checkSeatOccupied(TRADE_SEATS[i])
+        if not tradeOk then
+            local d = randomDelay()
+            task.wait(d)
+            -- Recheck sau delay
+            local tradeStill, _ = checkSeatOccupied(TRADE_SEATS[i])
+            if tradeStill then return false end
+            if safeFly(TRADE_SEATS[i]) then
+                currentSeatIdx = i; seatStartTime = tick()
+                return true
+            end
+            return false
         end
-    else
-        task.wait(3)
     end
+
+    -- Tất cả ghế trade đều có người
+    task.wait(3)
     return false
 end
 
 -- ══════════════════════════════════════════
 --  Seat Logic: RECV
+--  Ngồi theo thứ tự 1→2→3:
+--    Ưu tiên ghế có người trade đối diện (cùng index).
+--    Nếu không có cặp nào → lấy ghế recv trống đầu tiên theo thứ tự.
+--    Recheck sau delay trước khi bay.
 -- ══════════════════════════════════════════
 local function doRecvSeatLogic()
+    -- Bước 1: tìm ghế có người trade đối diện (index nhỏ nhất trước)
     for i = 1, 3 do
-        local tradeOk, tradeWho = checkSeatOccupied(TRADE_SEATS[i])
+        local tradeOk, _ = checkSeatOccupied(TRADE_SEATS[i])
         if tradeOk then
             local recvOk, _ = checkSeatOccupied(RECV_SEATS[i])
             if not recvOk then
                 local d = randomDelay()
                 task.wait(d)
+                -- Recheck sau delay
+                local tradeStill, _ = checkSeatOccupied(TRADE_SEATS[i])
+                local recvStill, _ = checkSeatOccupied(RECV_SEATS[i])
+                if not tradeStill or recvStill then return false end
                 if safeFly(RECV_SEATS[i]) then
                     currentSeatIdx = i; seatStartTime = tick()
                     return true
@@ -815,21 +814,25 @@ local function doRecvSeatLogic()
         end
     end
 
-    local empty = {}
-    for i = 1,3 do
-        if not checkSeatOccupied(RECV_SEATS[i]) then table.insert(empty, i) end
-    end
-    if #empty > 0 then
-        local c = empty[math.random(1,#empty)]
-        local d = randomDelay()
-        task.wait(d)
-        if safeFly(RECV_SEATS[c]) then
-            currentSeatIdx = c; seatStartTime = tick()
-            return true
+    -- Bước 2: không có cặp nào → ngồi ghế recv trống đầu tiên theo thứ tự 1→2→3
+    for i = 1, 3 do
+        local recvOk, _ = checkSeatOccupied(RECV_SEATS[i])
+        if not recvOk then
+            local d = randomDelay()
+            task.wait(d)
+            -- Recheck sau delay
+            local recvStill, _ = checkSeatOccupied(RECV_SEATS[i])
+            if recvStill then return false end
+            if safeFly(RECV_SEATS[i]) then
+                currentSeatIdx = i; seatStartTime = tick()
+                return true
+            end
+            return false
         end
-    else
-        task.wait(3)
     end
+
+    -- Tất cả ghế recv đều có người
+    task.wait(3)
     return false
 end
 
